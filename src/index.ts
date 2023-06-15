@@ -15,9 +15,17 @@ import session from "express-session";
 import { createClient } from "redis";
 import { __prod__ } from "./constants";
 import { MyContext } from "./types";
+import cors from "cors";
 
 const main = async () => {
   const app = express();
+
+  const corsOptions = {
+    origin: ["http://localhost:4000", "http://localhost:3000"],
+    credentials: true,
+  };
+
+  app.use(cors(corsOptions));
 
   // session middleware has to be run before apollo middleware
   // because apollo middleware will use session middleware
@@ -75,12 +83,7 @@ const main = async () => {
 
   await apolloServer.start();
 
-  const corsOptions = {
-    origin: "http://localhost:4000",
-    credentials: true,
-  };
-
-  apolloServer.applyMiddleware({ app, cors: corsOptions });
+  apolloServer.applyMiddleware({ app, cors: false });
 
   app.listen(4000, () => {
     console.log("server started on localhost:4000");
