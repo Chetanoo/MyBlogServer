@@ -13,7 +13,7 @@ import { UserResolver } from "./resolvers/user";
 import RedisStore from "connect-redis";
 import session from "express-session";
 import { createClient } from "redis";
-import { __prod__ } from "./constants";
+import { __prod__, COOKIE_NAME } from "./constants";
 import { MyContext } from "./types";
 import cors from "cors";
 
@@ -48,7 +48,7 @@ const main = async () => {
   // Initialize session middleware.
   app.use(
     session({
-      name: "mideio",
+      name: COOKIE_NAME,
       store: redisStore,
       resave: false, // required: force lightweight session keep alive (touch)
       saveUninitialized: false, // recommended: only save session when data exists

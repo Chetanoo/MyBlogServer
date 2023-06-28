@@ -12,6 +12,8 @@ import { User } from "../entities/User";
 import { MyContext } from "../types";
 import argon2 from "argon2";
 import { v4 as uuid } from "uuid";
+import { EntityManager } from "@mikro-orm/postgresql";
+import { COOKIE_NAME } from "../constants";
 
 @InputType()
 class UsernamePasswordInput {
@@ -75,18 +77,23 @@ export class UserResolver {
       };
     }
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, {
-      id: uuid(),
-      username: options.username,
-      password: hashedPassword,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    let user;
     try {
-      await em.persistAndFlush(user);
+      // query builder
+      const result = await (em as EntityManager)
+        .createQueryBuilder(User)
+        .getKnexQuery()
+        .insert({
+          id: uuid(),
+          username: options.username,
+          password: hashedPassword,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .returning("*");
+      user = result[0];
     } catch (e) {
       if (e.code === "23505") {
-        // || e.detail.includes("already exists")) {
         return {
           errors: [
             {
@@ -114,7 +121,7 @@ export class UserResolver {
         return {
           errors: [
             {
-              field: "passowrd",
+              field: "password",
               message: "Incorrect password",
             },
           ],
@@ -132,5 +139,20 @@ export class UserResolver {
         ],
       };
     }
+  }
+
+  @Mutation(() => Boolean)
+  async logout(@Ctx() { req, res }: MyContext) {
+    return new Promise((resolve) =>
+      req.session.destroy((err: any) => {
+        if (err) {
+          console.log(err);
+          resolve(false);
+          return;
+        }
+        res.clearCookie(COOKIE_NAME);
+        resolve(true);
+      })
+    );
   }
 }
