@@ -1,46 +1,95 @@
-import 'reflect-metadata';
-import { MikroORM } from "@mikro-orm/core"
-import {__prod__} from "./constants";
-// import {Post} from "./entities/Post";
-// import {v4 as uuid} from "uuid";
+import "reflect-metadata";
+import { MikroORM } from "@mikro-orm/core";
 import mikroOrmConfig from "./mikro-orm.config";
-import {EntityManager} from "@mikro-orm/postgresql";
+import { EntityManager } from "@mikro-orm/postgresql";
 import express from "express";
-import {ApolloServer} from "apollo-server-express";
-import {buildSchema} from "type-graphql";
-import {HelloResolver} from "./resolvers/hello";
-import {PostResolver} from "./resolvers/post";
+import { ApolloServer } from "apollo-server-express";
+import { ApolloServerPluginLandingPageGraphQLPlayground } from "apollo-server-core";
+import { buildSchema } from "type-graphql";
+import { HelloResolver } from "./resolvers/hello";
+import { PostResolver } from "./resolvers/post";
+import { UserResolver } from "./resolvers/user";
 
-console.log('dirname', __dirname);
+import RedisStore from "connect-redis";
+import session from "express-session";
+import { createClient } from "redis";
+import { __prod__, COOKIE_NAME } from "./constants";
+import { MyContext } from "./types";
+import cors from "cors";
 
 const main = async () => {
-    const app = express();
-    const orm = await MikroORM.init(mikroOrmConfig);
-    await orm.getMigrator().up()
-    const em = orm.em as EntityManager;
-    const fork = em.fork();
+  const app = express();
 
-    const apolloServer = new ApolloServer({
-        schema: await buildSchema({
-            resolvers: [HelloResolver, PostResolver],
-            validate: false,
-        }),
-        context: () => ({em: fork})
-    });
+  const corsOptions = {
+    origin: ["http://localhost:4000", "http://localhost:3000"],
+    credentials: true,
+  };
 
-    await apolloServer.start();
+  app.use(cors(corsOptions));
 
-    apolloServer.applyMiddleware({app})
+  // session middleware has to be run before apollo middleware
+  // because apollo middleware will use session middleware
+  // to get the session data
 
-    app.listen(4000, () => {
-        console.log('server started on localhost:4000');
-    });
-    // const post = fork.create(Post, {id: uuid(), title: 'my first post', createdAt: new Date(), updatedAt: new Date()});
-    // await fork.persistAndFlush(post);
-    // const posts = await fork.find(Post, {});
-    // console.log(posts);
-}
+  // Initialize Redis client.
+  const redisClient = createClient();
+  redisClient.connect().catch(console.error);
 
-main().catch(err => {
-    console.log(err)
+  // Initialize Redis session store.
+  const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "myblogapp:",
+    disableTouch: true,
+    // touch keeps the session alive and forces the session
+    // cookie to be updated when the session is used
+    // ttl: 86400, // 1 day
+  });
+
+  // Initialize session middleware.
+  app.use(
+    session({
+      name: COOKIE_NAME,
+      store: redisStore,
+      resave: false, // required: force lightweight session keep alive (touch)
+      saveUninitialized: false, // recommended: only save session when data exists
+      secret: "fghfjhgjghjghj",
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 5, // 5 year
+        httpOnly: true, // recommended: don't allow JS access to cookie
+        sameSite: "lax", // recommended: protection against CSRF
+        secure: __prod__, // recommended: only set cookie over https. In production this should be true.
+        // secure: true, // recommended: only set cookie over https. In production this should be true.
+      },
+    })
+  );
+
+  const orm = await MikroORM.init(mikroOrmConfig);
+  await orm.getMigrator().up();
+  const em = orm.em as EntityManager;
+  const fork = em.fork();
+
+  const apolloServer = new ApolloServer({
+    schema: await buildSchema({
+      resolvers: [HelloResolver, PostResolver, UserResolver],
+      validate: false,
+    }),
+    plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
+    context: ({ req, res }): MyContext => ({
+      em: fork,
+      req,
+      res,
+    }),
+  });
+
+  await apolloServer.start();
+
+  apolloServer.applyMiddleware({ app, cors: false });
+
+  app.listen(4000, () => {
+    console.log("server started on localhost:4000");
+  });
+};
+
+main().catch((err) => {
+  console.log(err);
 });
