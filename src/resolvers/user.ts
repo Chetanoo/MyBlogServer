@@ -11,8 +11,6 @@ import {
 import { User } from "../entities/User";
 import { MyContext } from "../types";
 import argon2 from "argon2";
-import { v4 as uuid } from "uuid";
-import { EntityManager } from "@mikro-orm/postgresql";
 import { COOKIE_NAME } from "../constants";
 
 @InputType()
@@ -80,19 +78,17 @@ export class UserResolver {
     let user;
     try {
       // query builder
-      const result = await (em as EntityManager)
-        .createQueryBuilder(User)
-        .getKnexQuery()
-        .insert({
-          id: uuid(),
-          username: options.username,
-          password: hashedPassword,
-          created_at: new Date(),
-          updated_at: new Date(),
-        })
-        .returning("*");
-      user = result[0];
+      user = em.create(User, {
+        username: options.username,
+        password: hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      await em.persistAndFlush(user);
+      req.session.userId = user.id;
+      return { user };
     } catch (e) {
+      console.error("Insert operation failed: ", e);
       if (e.code === "23505") {
         return {
           errors: [
@@ -104,8 +100,6 @@ export class UserResolver {
         };
       }
     }
-    // this will set a cookie and keep them logged in
-    req.session.userId = user.id;
     return { user };
   }
 
