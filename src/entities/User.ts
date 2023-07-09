@@ -1,15 +1,18 @@
-import { Entity, Property } from '@mikro-orm/core';
-import {CustomBaseEntity} from "./CustomBaseEntity";
-import {Field, ObjectType} from "type-graphql";
+import { Entity, Property } from "@mikro-orm/core";
+import { CustomBaseEntity } from "./CustomBaseEntity";
+import { Field, ObjectType } from "type-graphql";
 
 @ObjectType()
 @Entity()
 export class User extends CustomBaseEntity {
+  @Field()
+  @Property({ type: "text", unique: true })
+  username!: string;
 
-    @Field()
-    @Property({type: 'text', unique: true})
-    username!: string
+  @Property({ type: "text" })
+  password!: string;
 
-    @Property({type: 'text'})
-    password!: string
+  @Field()
+  @Property({ type: "email", unique: true })
+  email!: string;
 }
