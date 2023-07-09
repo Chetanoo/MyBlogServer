@@ -12,10 +12,11 @@ import { UserResolver } from "./resolvers/user";
 
 import RedisStore from "connect-redis";
 import session from "express-session";
-import { createClient } from "redis";
+import Redis from "ioredis";
 import { __prod__, COOKIE_NAME } from "./constants";
 import { MyContext } from "./types";
 import cors from "cors";
+// import { sendEmail } from "./utils/sendEmail";
 
 const main = async () => {
   const app = express();
@@ -32,12 +33,12 @@ const main = async () => {
   // to get the session data
 
   // Initialize Redis client.
-  const redisClient = createClient();
-  redisClient.connect().catch(console.error);
+  const redis = new Redis();
+  // redis.connect().catch(console.error);
 
   // Initialize Redis session store.
   const redisStore = new RedisStore({
-    client: redisClient,
+    client: redis,
     prefix: "myblogapp:",
     disableTouch: true,
     // touch keeps the session alive and forces the session
@@ -67,6 +68,7 @@ const main = async () => {
   await orm.getMigrator().up();
   const em = orm.em as EntityManager;
   const fork = em.fork();
+  // sendEmail("test@chet.com", "hello world");
 
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
@@ -78,6 +80,7 @@ const main = async () => {
       em: fork,
       req,
       res,
+      redis,
     }),
   });
 
