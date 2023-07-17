@@ -1,18 +1,22 @@
-import { Entity, Property } from "@mikro-orm/core";
 import { CustomBaseEntity } from "./CustomBaseEntity";
 import { Field, ObjectType } from "type-graphql";
+import { Column, Entity, OneToMany } from "typeorm";
+import { Post } from "./Post";
 
 @ObjectType()
 @Entity()
 export class User extends CustomBaseEntity {
   @Field()
-  @Property({ type: "text", unique: true })
+  @Column({ unique: true })
   username!: string;
 
-  @Property({ type: "text" })
+  @Column()
   password!: string;
 
   @Field()
-  @Property({ type: "email", unique: true })
+  @Column({ unique: true })
   email!: string;
+
+  @OneToMany(() => Post, (post) => post.creator)
+  posts: Post[];
 }

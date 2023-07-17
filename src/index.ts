@@ -1,7 +1,4 @@
 import "reflect-metadata";
-import { MikroORM } from "@mikro-orm/core";
-import mikroOrmConfig from "./mikro-orm.config";
-import { EntityManager } from "@mikro-orm/postgresql";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { ApolloServerPluginLandingPageGraphQLPlayground } from "apollo-server-core";
@@ -16,7 +13,7 @@ import Redis from "ioredis";
 import { __prod__, COOKIE_NAME } from "./constants";
 import { MyContext } from "./types";
 import cors from "cors";
-// import { sendEmail } from "./utils/sendEmail";
+import dataSource from "./dataSource";
 
 const main = async () => {
   const app = express();
@@ -64,12 +61,6 @@ const main = async () => {
     })
   );
 
-  const orm = await MikroORM.init(mikroOrmConfig);
-  await orm.getMigrator().up();
-  const em = orm.em as EntityManager;
-  const fork = em.fork();
-  // sendEmail("test@chet.com", "hello world");
-
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
       resolvers: [HelloResolver, PostResolver, UserResolver],
@@ -77,7 +68,6 @@ const main = async () => {
     }),
     plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
     context: ({ req, res }): MyContext => ({
-      em: fork,
       req,
       res,
       redis,
@@ -87,6 +77,15 @@ const main = async () => {
   await apolloServer.start();
 
   apolloServer.applyMiddleware({ app, cors: false });
+
+  dataSource
+    .initialize()
+    .then(() => {
+      console.log("Data Source has been initialized!");
+    })
+    .catch((err) => {
+      console.error("Error during Data Source initialization", err);
+    });
 
   app.listen(4000, () => {
     console.log("server started on localhost:4000");

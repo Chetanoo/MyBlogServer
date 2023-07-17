@@ -1,21 +1,25 @@
-import { v4 } from "uuid";
-import { Property, PrimaryKey } from "@mikro-orm/core";
 import { Field, ObjectType } from "type-graphql";
+import {
+  BaseEntity,
+  CreateDateColumn,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 
 @ObjectType()
-export abstract class CustomBaseEntity {
+export abstract class CustomBaseEntity extends BaseEntity {
   @Field(() => String)
-  @PrimaryKey()
-  id: string = v4();
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
 
   @Field(() => String)
-  @Property({ type: "date" })
-  createdAt: Date = new Date();
+  @CreateDateColumn()
+  createdAt: Date;
 
   // by comenting the @field we can choose what we
   // want to expose for graphql
 
   @Field(() => String)
-  @Property({ type: "date", onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

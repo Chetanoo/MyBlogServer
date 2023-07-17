@@ -1,72 +1,64 @@
-import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
+import {
+  Arg,
+  Ctx,
+  Field,
+  InputType,
+  Mutation,
+  Query,
+  Resolver,
+  UseMiddleware,
+} from "type-graphql";
 import { Post } from "../entities/Post";
 import { MyContext } from "../types";
-import { v4 as uuid } from "uuid";
+import { isAuth } from "../middleware/isAuth";
+
+@InputType()
+class PostInput {
+  @Field()
+  title: string;
+  @Field()
+  text: string;
+}
 
 @Resolver()
 export class PostResolver {
   @Query(() => [Post])
-  posts(@Ctx() { em }: MyContext): Promise<Post[]> {
-    return em.find(Post, {});
+  posts(): Promise<Post[]> {
+    return Post.find();
   }
 
   @Query(() => Post, { nullable: true })
-  post(@Arg("id") id: string, @Ctx() { em }: MyContext): Promise<Post | null> {
-    return em.findOne(Post, { id });
+  post(@Arg("id") id: string): Promise<Post | null> {
+    return Post.findOneBy({ id });
   }
 
   @Mutation(() => Post)
+  @UseMiddleware(isAuth)
   async createPost(
-    @Arg("title") title: string,
-    @Ctx() { em }: MyContext
+    @Arg("input") input: PostInput,
+    @Ctx() { req }: MyContext
   ): Promise<Post> {
-    const post: Post = em.create(Post, {
-      id: uuid(),
-      title,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    await em.persistAndFlush(post);
-    return post;
+    return Post.create({ ...input, creatorId: req.session.userId }).save();
   }
 
   @Mutation(() => Post)
   async updatePost(
     @Arg("id") id: string,
-    @Arg("title") title: string,
-    // @Arg(
-    //     'title',
-    //     () => String,
-    //     {nullable: true}
-    // ) title: string,
-    @Ctx() { em }: MyContext
-  ): Promise<Post> {
-    // const post: Post = await em.findOneOrFail(
-    //     Post,
-    //     {id},
-    //     {
-    //         failHandler: (entityName: string) =>
-    //             new Error(`Failed: ${entityName} not found`)
-    //     });
-    // wrap(post).assign({title, updatedAt: new Date()});
-    const post = await em.findOne(Post, { id });
-    if (!post) throw new Error("Post not found");
-    if (title) {
-      post!.title = title;
-      post!.updatedAt = new Date();
+    @Arg("title") title: string
+  ): Promise<Post | null> {
+    const post = await Post.findOneBy({ id });
+    if (!post) {
+      return null;
     }
-    await em.persistAndFlush(post);
+    if (typeof title !== undefined) {
+      await Post.update({ id }, { title });
+    }
     return post;
   }
 
-  @Mutation(() => Post)
-  async deletePost(
-    @Arg("id") id: string,
-    @Ctx() { em }: MyContext
-  ): Promise<Post> {
-    const post = await em.getReference(Post, id);
-    if (!post) throw new Error("Post not found");
-    await em.remove(post).flush();
-    return em.findOneOrFail(Post, { id });
+  @Mutation(() => Boolean)
+  async deletePost(@Arg("id") id: string): Promise<Boolean> {
+    await Post.delete(id);
+    return true;
   }
 }
