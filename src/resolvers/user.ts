@@ -63,7 +63,7 @@ export class UserResolver {
         ],
       };
     }
-    const user = await User.findOneBy({ id: userId });
+    const user = await User.findOneBy({ id: parseInt(userId) });
 
     if (!user) {
       return {
@@ -76,7 +76,7 @@ export class UserResolver {
       };
     }
     await User.update(
-      { id: userId },
+      { id: parseInt(userId) },
       { password: await argon2.hash(newPassword) }
     );
 

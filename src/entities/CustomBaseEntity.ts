@@ -9,8 +9,8 @@ import {
 @ObjectType()
 export abstract class CustomBaseEntity extends BaseEntity {
   @Field(() => String)
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Field(() => String)
   @CreateDateColumn()

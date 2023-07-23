@@ -18,9 +18,9 @@ export class Post extends CustomBaseEntity {
   @Column({ type: "int", default: 0 })
   rating!: number;
 
-  @Field(() => String)
+  @Field(() => Number)
   @Column()
-  creatorId: string;
+  creatorId: number;
 
   @ManyToOne(() => User, (user) => user.posts)
   creator: User;

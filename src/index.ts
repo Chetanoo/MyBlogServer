@@ -78,7 +78,7 @@ const main = async () => {
 
   apolloServer.applyMiddleware({ app, cors: false });
 
-  dataSource
+  await dataSource
     .initialize()
     .then(() => {
       console.log("Data Source has been initialized!");
@@ -86,6 +86,10 @@ const main = async () => {
     .catch((err) => {
       console.error("Error during Data Source initialization", err);
     });
+
+  await dataSource.runMigrations();
+
+  // await Post.delete({});
 
   app.listen(4000, () => {
     console.log("server started on localhost:4000");
