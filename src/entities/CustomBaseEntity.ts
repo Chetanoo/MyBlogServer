@@ -1,4 +1,4 @@
-import { Field, ObjectType } from "type-graphql";
+import { Field, Int, ObjectType } from "type-graphql";
 import {
   BaseEntity,
   CreateDateColumn,
@@ -8,9 +8,9 @@ import {
 
 @ObjectType()
 export abstract class CustomBaseEntity extends BaseEntity {
-  @Field(() => String)
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
+  @Field(() => Int)
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Field(() => String)
   @CreateDateColumn()

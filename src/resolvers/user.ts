@@ -2,10 +2,12 @@ import {
   Arg,
   Ctx,
   Field,
+  FieldResolver,
   Mutation,
   ObjectType,
   Query,
   Resolver,
+  Root,
 } from "type-graphql";
 import { User } from "../entities/User";
 import { MyContext } from "../types";
@@ -33,8 +35,17 @@ class UserResponse {
   user?: User;
 }
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
+  @FieldResolver(() => String)
+  email(@Root() user: User, @Ctx() { req }: MyContext) {
+    // user is authored to see his own email
+    if (req.session.userId === user.id) {
+      return user.email;
+    }
+    // you cant see someone else email
+    return "";
+  }
   @Mutation(() => UserResponse)
   async changePassword(
     @Arg("token") token: string,
@@ -63,7 +74,7 @@ export class UserResolver {
         ],
       };
     }
-    const user = await User.findOneBy({ id: userId });
+    const user = await User.findOneBy({ id: parseInt(userId) });
 
     if (!user) {
       return {
@@ -76,7 +87,7 @@ export class UserResolver {
       };
     }
     await User.update(
-      { id: userId },
+      { id: parseInt(userId) },
       { password: await argon2.hash(newPassword) }
     );
 
